@@ -1,0 +1,13 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "dev.tubyoub.modchecker.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "mixins": [],
+  "client": [
+    "ClientBrandMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "id": "fitnacraft",
+  "version": "${version}",
+  "name": "FitnaCraft",
+  "description": "Client Mod for FitnaCraft",
+  "authors": [
+    "TubYoub"
+  ],
+  "contact": {
+    "website": "https://me.tubyoub.de",
+    "repo": "https://github.com/TubYoub/FitnaCraftMod"
+  },
+  "license": "MIT",
+  "icon": "icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "main": [
+      "dev.tubyoub.modchecker.ModChecker"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric": "*",
+    "minecraft": "${minecraft_version}"
+  },
+  "mixins": [
+    "modchecker.mixins.json"
+  ]
+}
