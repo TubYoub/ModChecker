@@ -1,4 +1,4 @@
-["animatica", "appleskin", "betterf3", "bettermounthud", "caffeineconfig", "capes",
+["mod-checker","animatica", "appleskin", "betterf3", "bettermounthud", "caffeineconfig", "capes",
         "cloth-basic-math", "cloth-config", "com_akuleshov7_ktoml-core-jvm",
         "com_github_fallen-breath_conditional-mixin", "com_twelvemonkeys_common_common-image",
         "com_twelvemonkeys_common_common-io", "com_twelvemonkeys_common_common-lang",
@@ -7,7 +7,7 @@
         "cubes-without-borders", "debugify", "dev_isxander_libsdl4j", "distanthorizons",
         "dynamic_fps", "e4mc_minecraft", "entity_model_features", "entity_texture_features",
         "entityculling", "fabric-api", "fabricloader", "fabricskyboxes", "fabrishot",
-        "fastquit", "ferritecore", "fitnacraft", "freecam", "fsb-interop", "gammautils",
+        "fastquit", "ferritecore", "freecam", "fsb-interop", "gammautils",
         "immediatelyfast", "indium", "io_github_douira_glsl-transformer", "iris",
         "isxander-main-menu-credits", "itemswapper", "java", "languagereload", "litematica",
         "lithium", "malilib", "midnightlib", "minecraft", "mixinextras", "mixinsquared",
@@ -28,4 +28,4 @@
         "placeholder-api", "polytone", "puzzle", "puzzle-base", "puzzle-gui", "puzzle-models",
         "puzzle-splashscreen", "reeses-sodium-options", "rrls", "shulkerboxtooltip", "sodium",
         "sodium-extra", "sound_physics_remastered", "status-effect-bars", "voicechat",
-        "xaerominimap", "xaeroworldmap", "yet_another_config_lib_v3", "yosbr", "zoomify", "mod-checker"]
+        "xaerominimap", "xaeroworldmap", "yet_another_config_lib_v3", "yosbr", "zoomify"]

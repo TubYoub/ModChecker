@@ -1,15 +1,15 @@
 {
   "schemaVersion": 1,
-  "id": "fitnacraft",
+  "id": "mod-checker",
   "version": "${version}",
-  "name": "FitnaCraft",
-  "description": "Client Mod for FitnaCraft",
+  "name": "ModChecker",
+  "description": "Client Mod for checking if someone uses disallowed mods using a list pulled from GitHub",
   "authors": [
     "TubYoub"
   ],
   "contact": {
     "website": "https://me.tubyoub.de",
-    "repo": "https://github.com/TubYoub/FitnaCraftMod"
+    "repo": "https://github.com/TubYoub/ModChecker"
   },
   "license": "MIT",
   "icon": "icon.png",
