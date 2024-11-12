@@ -8,8 +8,6 @@ import org.apache.logging.log4j.Logger;
 import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.loader.api.ModContainer;
 import java.util.List;
-import java.util.ArrayList;
-import java.util.Arrays;
 
 public class ModChecker implements ModInitializer {
     public static final String MOD_ID = "mod-checker";
