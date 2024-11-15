@@ -30,4 +30,5 @@
         "sodium-extra", "sound_physics_remastered", "status-effect-bars", "voicechat",
         "xaerominimap", "xaeroworldmap", "yet_another_config_lib_v3", "yosbr", "zoomify",
         "conditional-mixin", "dev_isxander_steamdeck4j", "folk_sisby_kaleido-config", "lambdynlights", "mousetweaks",
-        "org_jetbrains_kotlinx_kotlinx-io-bytestring-jvm", "org_jetbrains_kotlinx_kotlinx-io-core-jvm", "pride", "spruceui"]
+        "org_jetbrains_kotlinx_kotlinx-io-bytestring-jvm", "org_jetbrains_kotlinx_kotlinx-io-core-jvm", "pride", "spruceui", "clientsort",
+        "com_electronwill_night-config_core", "com_electronwill_night-config_toml", "forgeconfigapiport"]
