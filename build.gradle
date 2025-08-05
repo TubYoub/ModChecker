@@ -3,7 +3,9 @@ plugins {
     id 'maven-publish'
 }
 
-def targetMinecraftVersion = project.hasProperty('targetMinecraftVersion') ? project.getProperty('targetMinecraftVersion') : '1_21_6'
+def targetMinecraftVersion = project.hasProperty('targetMinecraftVersion')
+        ? project.getProperty('targetMinecraftVersion')
+        : '1_21_6'
 
 def getVersionProperty = { propertyName ->
     def specificProperty = "mc_${targetMinecraftVersion.replace('.', '_')}_${propertyName}"
@@ -20,9 +22,7 @@ base {
 }
 
 repositories {
-    maven {
-        url "https://maven.fabricmc.net/"
-    }
+    maven { url "https://maven.fabricmc.net/" }
 }
 
 dependencies {
@@ -43,7 +43,7 @@ processResources {
         expand "version": project.version,
                 "minecraft_version": getVersionProperty('minecraft_version'),
                 "loader_version": getVersionProperty('loader_version'),
-                "mod_version" : project.mod_version
+                "mod_version": project.mod_version
     }
 }
 
@@ -65,7 +65,7 @@ java {
 
 jar {
     from("LICENSE") {
-        rename { "${it}_${project.archivesBaseName}"}
+        rename { "${it}_${project.archivesBaseName}" }
     }
 }
 
@@ -81,6 +81,9 @@ publishing {
 tasks.register('buildAllMinecraftVersions') {
     group = "build"
     description = "Builds the mod for all configured Minecraft versions"
+
+    // one clean at the very beginning
+    dependsOn 'clean'
 
     doLast {
         def minecraftVersions = []
@@ -103,28 +106,20 @@ tasks.register('buildAllMinecraftVersions') {
 
         minecraftVersions.each { mcVer ->
             logger.lifecycle("Building for Minecraft ${mcVer.replace('_', '.')}")
-            // Ensure all elements are explicitly strings
             def commandLine = [
-                gradlewCommand,
-                "clean",
-                "build",
-                "-PtargetMinecraftVersion=${mcVer}",
-                "--refresh-dependencies"
-            ].collect { it.toString() } // Explicitly convert each element to string
+                    gradlewCommand,
+                    "build",
+                    "-PtargetMinecraftVersion=${mcVer}"
+            ].collect { it.toString() }
 
             def processBuilder = new ProcessBuilder(commandLine)
                     .directory(project.rootDir)
                     .redirectErrorStream(true)
 
-            // Set JAVA_HOME in the environment
-            // This is crucial for ProcessBuilder when launching another Java process
             def javaHome = System.getenv("JAVA_HOME")
             if (javaHome) {
                 processBuilder.environment().put("JAVA_HOME", javaHome)
-            } else {
-                logger.warn("JAVA_HOME environment variable is not set. This might cause issues for subprocesses.")
             }
-
 
             def process = processBuilder.start()
             process.inputStream.eachLine { println it }
