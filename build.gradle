@@ -1,54 +1,54 @@
 plugins {
-    id 'fabric-loom' version '1.10-SNAPSHOT'
+    id 'fabric-loom' version '1.11-SNAPSHOT'
     id 'maven-publish'
+}
+
+def targetMinecraftVersion = project.hasProperty('targetMinecraftVersion') ? project.getProperty('targetMinecraftVersion') : '1_21_6'
+
+def getVersionProperty = { propertyName ->
+    def specificProperty = "mc_${targetMinecraftVersion.replace('.', '_')}_${propertyName}"
+    if (project.hasProperty(specificProperty)) {
+        return project.getProperty(specificProperty)
+    }
+    throw new GradleException("Missing property: ${specificProperty} for target Minecraft version: ${targetMinecraftVersion}")
 }
 
 version = project.mod_version
 group = project.maven_group
-
 base {
-    archivesName = project.archives_base_name
+    archivesName = "${project.archives_base_name}-${targetMinecraftVersion.replace('_', '.')}"
 }
 
 repositories {
-    // Add repositories to retrieve artifacts from in here.
-    // You should only use this when depending on other mods because
-    // Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
-    // See https://docs.gradle.org/current/userguide/declaring_repositories.html
-    // for more information about repositories.
+    maven {
+        url "https://maven.fabricmc.net/"
+    }
 }
 
 dependencies {
-    // To change the versions see the gradle.properties file
-    minecraft "com.mojang:minecraft:${project.minecraft_version}"
-    mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
-    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
-
-    // Fabric API. This is technically optional, but you probably want it anyway.
-    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+    minecraft "com.mojang:minecraft:${getVersionProperty('minecraft_version')}"
+    mappings "net.fabricmc:yarn:${getVersionProperty('yarn_mappings')}:v2"
+    modImplementation "net.fabricmc:fabric-loader:${getVersionProperty('loader_version')}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${getVersionProperty('fabric_version')}"
 }
 
 processResources {
     inputs.property "version", project.version
-    inputs.property "minecraft_version", project.minecraft_version
-    inputs.property "loader_version", project.loader_version
+    inputs.property "minecraft_version", getVersionProperty('minecraft_version')
+    inputs.property "loader_version", getVersionProperty('loader_version')
     inputs.property "mod_version", project.mod_version
     filteringCharset "UTF-8"
 
     filesMatching("fabric.mod.json") {
         expand "version": project.version,
-                "minecraft_version": project.minecraft_version,
-                "loader_version": project.loader_version,
+                "minecraft_version": getVersionProperty('minecraft_version'),
+                "loader_version": getVersionProperty('loader_version'),
                 "mod_version" : project.mod_version
     }
 }
 
 def targetJavaVersion = 21
 tasks.withType(JavaCompile).configureEach {
-    // ensure that the encoding is set to UTF-8, no matter what the system default is
-    // this fixes some edge cases with special characters not displaying correctly
-    // see http://yodaconditions.net/blog/fix-for-java-file-encoding-problems-with-gradle.html
-    // If Javadoc is generated, this must be specified in that task too.
     it.options.encoding = "UTF-8"
     if (targetJavaVersion >= 10 || JavaVersion.current().isJava10Compatible()) {
         it.options.release.set(targetJavaVersion)
@@ -60,9 +60,6 @@ java {
     if (JavaVersion.current() < javaVersion) {
         toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
     }
-    // Loom will automatically attach sourcesJar to a RemapSourcesJar task and to the "build" task
-    // if it is present.
-    // If you remove this line, sources will not be generated.
     withSourcesJar()
 }
 
@@ -72,7 +69,6 @@ jar {
     }
 }
 
-// configure the maven publication
 publishing {
     publications {
         create("mavenJava", MavenPublication) {
@@ -80,12 +76,64 @@ publishing {
             from components.java
         }
     }
+}
 
-    // See https://docs.gradle.org/current/userguide/publishing_maven.html for information on how to set up publishing.
-    repositories {
-        // Add repositories to publish to here.
-        // Notice: This block does NOT have the same function as the block in the top level.
-        // The repositories here will be used for publishing your artifact, not for
-        // retrieving dependencies.
+tasks.register('buildAllMinecraftVersions') {
+    group = "build"
+    description = "Builds the mod for all configured Minecraft versions"
+
+    doLast {
+        def minecraftVersions = []
+        project.properties.each { key, value ->
+            if (key.startsWith('mc_') && key.endsWith('_minecraft_version')) {
+                def versionId = key.substring(3, key.length() - '_minecraft_version'.length())
+                minecraftVersions.add(versionId)
+            }
+        }
+
+        if (minecraftVersions.isEmpty()) {
+            logger.warn("No Minecraft versions configured in gradle.properties starting with 'mc_'.")
+            return
+        }
+
+        logger.lifecycle("Building for Minecraft versions: ${minecraftVersions.collect { it.replace('_', '.') }.join(', ')}")
+
+        def isWindows = System.getProperty("os.name").toLowerCase().contains("win")
+        def gradlewCommand = isWindows ? "gradlew.bat" : "./gradlew"
+
+        minecraftVersions.each { mcVer ->
+            logger.lifecycle("Building for Minecraft ${mcVer.replace('_', '.')}")
+            // Ensure all elements are explicitly strings
+            def commandLine = [
+                gradlewCommand,
+                "clean",
+                "build",
+                "-PtargetMinecraftVersion=${mcVer}",
+                "--refresh-dependencies"
+            ].collect { it.toString() } // Explicitly convert each element to string
+
+            def processBuilder = new ProcessBuilder(commandLine)
+                    .directory(project.rootDir)
+                    .redirectErrorStream(true)
+
+            // Set JAVA_HOME in the environment
+            // This is crucial for ProcessBuilder when launching another Java process
+            def javaHome = System.getenv("JAVA_HOME")
+            if (javaHome) {
+                processBuilder.environment().put("JAVA_HOME", javaHome)
+            } else {
+                logger.warn("JAVA_HOME environment variable is not set. This might cause issues for subprocesses.")
+            }
+
+
+            def process = processBuilder.start()
+            process.inputStream.eachLine { println it }
+
+            if (process.waitFor() != 0) {
+                logger.error("Build failed for Minecraft ${mcVer.replace('_', '.')}")
+                throw new GradleException("Build failed for Minecraft ${mcVer.replace('_', '.')}")
+            }
+            logger.lifecycle("Successfully built for Minecraft ${mcVer.replace('_', '.')}")
+        }
     }
 }
