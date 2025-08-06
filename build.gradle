@@ -80,7 +80,7 @@ publishing {
 
 tasks.register('buildAllMinecraftVersions') {
     group = "build"
-    description = "Builds the mod for all configured Minecraft versions"
+    description = "Builds the mod for all configured Minecraft versions and launches a test client for each one"
 
     // one clean at the very beginning
     dependsOn 'clean'
@@ -99,36 +99,66 @@ tasks.register('buildAllMinecraftVersions') {
             return
         }
 
-        logger.lifecycle("Building for Minecraft versions: ${minecraftVersions.collect { it.replace('_', '.') }.join(', ')}")
+        // sort oldest → newest
+        minecraftVersions = minecraftVersions.sort(false) { a, b ->
+            def aParts = a.replace('_', '.').split('\\.')
+            def bParts = b.replace('_', '.').split('\\.')
+            for (int i = 0; i < Math.min(aParts.size(), bParts.size()); i++) {
+                int cmp = (aParts[i] as Integer).compareTo(bParts[i] as Integer)
+                if (cmp != 0) return cmp
+            }
+            aParts.size() <=> bParts.size()
+        }
+
+        logger.lifecycle("Building & testing for Minecraft versions: ${minecraftVersions.collect { it.replace('_', '.') }.join(', ')}")
 
         def isWindows = System.getProperty("os.name").toLowerCase().contains("win")
         def gradlewCommand = isWindows ? "gradlew.bat" : "./gradlew"
 
         minecraftVersions.each { mcVer ->
-            logger.lifecycle("Building for Minecraft ${mcVer.replace('_', '.')}")
-            def commandLine = [
+            logger.lifecycle("=== Building for Minecraft ${mcVer.replace('_', '.')} ===")
+
+            // 1. Build
+            def buildCmd = [
                     gradlewCommand,
                     "build",
                     "-PtargetMinecraftVersion=${mcVer}"
             ].collect { it.toString() }
 
-            def processBuilder = new ProcessBuilder(commandLine)
+            def buildProc = new ProcessBuilder(buildCmd)
                     .directory(project.rootDir)
                     .redirectErrorStream(true)
-
-            def javaHome = System.getenv("JAVA_HOME")
-            if (javaHome) {
-                processBuilder.environment().put("JAVA_HOME", javaHome)
-            }
-
-            def process = processBuilder.start()
-            process.inputStream.eachLine { println it }
-
-            if (process.waitFor() != 0) {
-                logger.error("Build failed for Minecraft ${mcVer.replace('_', '.')}")
+                    .start()
+            buildProc.inputStream.eachLine { println it }
+            if (buildProc.waitFor() != 0) {
                 throw new GradleException("Build failed for Minecraft ${mcVer.replace('_', '.')}")
             }
-            logger.lifecycle("Successfully built for Minecraft ${mcVer.replace('_', '.')}")
+
+            logger.lifecycle("=== Launching test client for Minecraft ${mcVer.replace('_', '.')} ===")
+
+            // 2. Run client
+            def runCmd = [
+                    gradlewCommand,
+                    "runClient",
+                    "-PtargetMinecraftVersion=${mcVer}"
+            ].collect { it.toString() }
+
+            def runProc = new ProcessBuilder(runCmd)
+                    .directory(project.rootDir)
+                    .redirectErrorStream(true)
+                    .start()
+
+            // Pipe output to console so you can see crashes
+            runProc.inputStream.eachLine { println it }
+
+            int exit = runProc.waitFor()
+            if (exit != 0) {
+                throw new GradleException("Test client crashed or exited with code $exit for Minecraft ${mcVer.replace('_', '.')}")
+            }
+
+            logger.lifecycle("=== Test client closed normally for Minecraft ${mcVer.replace('_', '.')} ===")
         }
+
+        logger.lifecycle("All versions built and tested successfully!")
     }
 }
