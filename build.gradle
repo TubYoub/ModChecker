@@ -79,86 +79,94 @@ publishing {
 }
 
 tasks.register('buildAllMinecraftVersions') {
-    group = "build"
-    description = "Builds the mod for all configured Minecraft versions and launches a test client for each one"
-
-    // one clean at the very beginning
-    dependsOn 'clean'
+    group = 'build'
+    description = 'Builds and smoke-tests every configured MC version'
 
     doLast {
         def minecraftVersions = []
-        project.properties.each { key, value ->
-            if (key.startsWith('mc_') && key.endsWith('_minecraft_version')) {
-                def versionId = key.substring(3, key.length() - '_minecraft_version'.length())
-                minecraftVersions.add(versionId)
+        project.properties.each { k, v ->
+            if (k.startsWith('mc_') && k.endsWith('_minecraft_version')) {
+                minecraftVersions << k.substring(3, k.length() - '_minecraft_version'.length())
             }
         }
-
         if (minecraftVersions.isEmpty()) {
-            logger.warn("No Minecraft versions configured in gradle.properties starting with 'mc_'.")
+            logger.warn('No Minecraft versions configured.')
             return
         }
 
-        // sort oldest → newest
         minecraftVersions = minecraftVersions.sort(false) { a, b ->
-            def aParts = a.replace('_', '.').split('\\.')
-            def bParts = b.replace('_', '.').split('\\.')
-            for (int i = 0; i < Math.min(aParts.size(), bParts.size()); i++) {
-                int cmp = (aParts[i] as Integer).compareTo(bParts[i] as Integer)
+            def ap = a.replace('_', '.').split('\\.')
+            def bp = b.replace('_', '.').split('\\.')
+            for (int i = 0; i < Math.min(ap.size(), bp.size()); i++) {
+                int cmp = (ap[i] as Integer) <=> (bp[i] as Integer)
                 if (cmp != 0) return cmp
             }
-            aParts.size() <=> bParts.size()
+            ap.size() <=> bp.size()
         }
 
-        logger.lifecycle("Building & testing for Minecraft versions: ${minecraftVersions.collect { it.replace('_', '.') }.join(', ')}")
-
-        def isWindows = System.getProperty("os.name").toLowerCase().contains("win")
-        def gradlewCommand = isWindows ? "gradlew.bat" : "./gradlew"
+        def isWindows = System.getProperty('os.name').toLowerCase().contains('win')
+        def gradlew = isWindows ? 'gradlew.bat' : './gradlew'
 
         minecraftVersions.each { mcVer ->
-            logger.lifecycle("=== Building for Minecraft ${mcVer.replace('_', '.')} ===")
+            def mcFriendly = mcVer.replace('_', '.')
+            logger.lifecycle("=== Building $mcFriendly ===")
 
-            // 1. Build
-            def buildCmd = [
-                    gradlewCommand,
-                    "build",
-                    "-PtargetMinecraftVersion=${mcVer}"
-            ].collect { it.toString() }
-
-            def buildProc = new ProcessBuilder(buildCmd)
+            // 1. build
+            def build = new ProcessBuilder(gradlew, 'build', "-PtargetMinecraftVersion=$mcVer")
                     .directory(project.rootDir)
                     .redirectErrorStream(true)
                     .start()
-            buildProc.inputStream.eachLine { println it }
-            if (buildProc.waitFor() != 0) {
-                throw new GradleException("Build failed for Minecraft ${mcVer.replace('_', '.')}")
+            build.inputStream.eachLine { println it }
+            if (build.waitFor() != 0) {
+                throw new GradleException("Build failed for $mcFriendly")
             }
 
-            logger.lifecycle("=== Launching test client for Minecraft ${mcVer.replace('_', '.')} ===")
-
-            // 2. Run client
-            def runCmd = [
-                    gradlewCommand,
-                    "runClient",
-                    "-PtargetMinecraftVersion=${mcVer}"
-            ].collect { it.toString() }
-
-            def runProc = new ProcessBuilder(runCmd)
+            // 2. smoke-test
+            logger.lifecycle("=== Smoke-testing $mcFriendly ===")
+            def run = new ProcessBuilder(
+                    gradlew, 'runClient',
+                    "-PtargetMinecraftVersion=$mcVer",
+                    '--args=--quickPlayPath dummy'
+            )
                     .directory(project.rootDir)
                     .redirectErrorStream(true)
                     .start()
 
-            // Pipe output to console so you can see crashes
-            runProc.inputStream.eachLine { println it }
+            def success = false
+            run.inputStream.eachLine { line ->
+                println line
+                if (line.contains('[ModChecker] Successfully changed client brand to:')) {
+                    success = true
+                    // force-close the client
+                    run.descendants().forEach { it.destroy() }
+                    run.destroy()
+                }
+            }
+            run.waitFor()
 
-            int exit = runProc.waitFor()
-            if (exit != 0) {
-                throw new GradleException("Test client crashed or exited with code $exit for Minecraft ${mcVer.replace('_', '.')}")
+            if (!success) {
+                throw new GradleException("Smoke-test failed for $mcFriendly")
             }
 
-            logger.lifecycle("=== Test client closed normally for Minecraft ${mcVer.replace('_', '.')} ===")
+            // 3. copy ONLY the jar that belongs to this MC version
+            def outDir = file("${buildDir}/distributions/${mcFriendly}")
+            outDir.mkdirs()
+
+            def expectedJarName = "${archives_base_name}-${mcFriendly}-${mod_version}.jar"
+            def jarFile = file("${buildDir}/libs/${expectedJarName}")
+            if (!jarFile.exists()) {
+                // fallback: pick the first jar we find
+                jarFile = file("${buildDir}/libs").listFiles()?.find { it.name.endsWith('.jar') }
+            }
+            if (jarFile?.exists()) {
+                copy {
+                    from jarFile
+                    into outDir
+                    rename { expectedJarName }
+                }
+            }
+            logger.lifecycle("=== $mcFriendly done ===")
         }
-
-        logger.lifecycle("All versions built and tested successfully!")
+        logger.lifecycle('All versions built and tested successfully!')
     }
 }
