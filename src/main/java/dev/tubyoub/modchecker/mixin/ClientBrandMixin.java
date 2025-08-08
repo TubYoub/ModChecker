@@ -13,25 +13,34 @@ import java.util.Optional;
 
 @Mixin(ClientBrandRetriever.class)
 public class ClientBrandMixin {
+
+    // Cache the computed brand so we only build / log it once.
+    private static String cachedBrand;
+
     @Inject(method = "getClientModName", at = @At("RETURN"), cancellable = true, remap = false)
     private static void onGetClientModName(CallbackInfoReturnable<String> cir) {
-        Optional<ModMetadata> optionalMetadata = FabricLoader.getInstance().getModContainer("mod-checker").map(container -> container.getMetadata());
-        String brand;
+        if (cachedBrand == null) {
+            Optional<ModMetadata> optionalMetadata = FabricLoader.getInstance()
+                    .getModContainer("mod-checker")
+                    .map(container -> container.getMetadata());
 
-        if (optionalMetadata.isPresent()) {
-            ModMetadata metadata = optionalMetadata.get();
-            String version = metadata.getVersion().getFriendlyString();
-            brand = "ModChecker-fabric v" + version;
+            if (optionalMetadata.isPresent()) {
+                ModMetadata metadata = optionalMetadata.get();
+                String version = metadata.getVersion().getFriendlyString();
+                cachedBrand = "ModChecker-fabric v" + version;
 
-            if (ModChecker.unexpectedModsDetected) {
-                brand += " (Unexpected Mods detected)";
+                if (ModChecker.unexpectedModsDetected) {
+                    cachedBrand += " (Unexpected Mods detected)";
+                } else {
+                    cachedBrand += " (No unexpected mods detected)";
+                }
             } else {
-                brand += " (No unexpected mods detected)";
+                cachedBrand = "ModChecker";
             }
-        } else {
-            brand = "ModChecker";
+
+            ModChecker.LOGGER.info("[ModChecker] Successfully changed client brand to: {}", cachedBrand);
         }
 
-        cir.setReturnValue(brand);
+        cir.setReturnValue(cachedBrand);
     }
 }
